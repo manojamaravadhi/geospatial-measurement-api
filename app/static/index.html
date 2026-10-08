@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEREO | Geospatial Measurement Studio</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Map Rendering -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Background Glow FX -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <header class="app-header">
+    <div class="brand-group">
+      <div class="brand-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">AEREO <span>Measurement Studio</span></h1>
+        <p class="brand-subtitle">Geospatial File Processing & Projected Metric Analytics</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-indicator">
+        <span class="pulse-dot"></span>
+        <span class="status-text">FastAPI Engine Online</span>
+      </div>
+      <a href="/docs" target="_blank" class="nav-link-btn" title="View OpenAPI / Swagger documentation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        Swagger Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    <!-- Top Bar: Upload & Quick Demos -->
+    <section class="upload-section glass-panel">
+      <div class="upload-grid">
+        <!-- Dropzone -->
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="fileInput" accept=".zip,.kml" hidden>
+          <div class="dropzone-content">
+            <div class="upload-icon-bubble">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <div>
+              <p class="dropzone-title"><strong>Drop your geospatial file here</strong> or <span class="browse-link">browse</span></p>
+              <p class="dropzone-hints">Supports <code>.kml</code> or <code>.zip</code> containing ESRI Shapefile</p>
+            </div>
+          </div>
+          <div id="uploadLoader" class="upload-loader hidden">
+            <div class="spinner"></div>
+            <span>Processing & Reprojecting Geometries...</span>
+          </div>
+        </div>
+
+        <!-- Quick Demos & File History -->
+        <div class="quick-actions-panel">
+          <div class="panel-label">⚡ Instant Test Demos</div>
+          <div class="demo-buttons-group">
+            <button id="btnDemoKml" class="btn btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              Load Sample KML
+            </button>
+            <button id="btnDemoShp" class="btn btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+              </svg>
+              Load Sample Shapefile (.zip)
+            </button>
+          </div>
+
+          <div class="history-select-group">
+            <label for="fileSelect" class="panel-label">📂 Processed Files:</label>
+            <select id="fileSelect" class="custom-select">
+              <option value="" disabled selected>Upload or select a file...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error / Notification Banner -->
+    <div id="alertBanner" class="alert-banner hidden">
+      <span id="alertMessage"></span>
+      <button id="alertClose" class="alert-close">&times;</button>
+    </div>
+
+    <!-- Metrics Cards -->
+    <section class="metrics-grid">
+      <div class="metric-card glass-panel">
+        <div class="metric-header">
+          <span class="metric-title">TOTAL FEATURES</span>
+          <div class="metric-icon features-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" id="valTotalFeatures">-</div>
+        <div class="metric-sub" id="subFeatureBreakdown">No file loaded</div>
+      </div>
+
+      <div class="metric-card glass-panel highlight-area">
+        <div class="metric-header">
+          <span class="metric-title">TOTAL AREA</span>
+          <div class="metric-icon area-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" id="valTotalArea">-</div>
+        <div class="metric-sub" id="subTotalHectares">- hectares</div>
+      </div>
+
+      <div class="metric-card glass-panel highlight-length">
+        <div class="metric-header">
+          <span class="metric-title">TOTAL LENGTH</span>
+          <div class="metric-icon length-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 14l6-6 4 4 6-6"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value" id="valTotalLength">-</div>
+        <div class="metric-sub" id="subTotalKm">- kilometers</div>
+      </div>
+
+      <div class="metric-card glass-panel">
+        <div class="metric-header">
+          <span class="metric-title">CRS PROJECTION</span>
+          <div class="metric-icon crs-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value crs-value" id="valProjectedCrs">-</div>
+        <div class="metric-sub" id="subOriginalCrs">Source: -</div>
+      </div>
+    </section>
+
+    <!-- Workspace: Map & Feature Inspector -->
+    <div class="workspace-grid">
+      <!-- Interactive Leaflet Map -->
+      <section class="map-container glass-panel">
+        <div class="panel-toolbar">
+          <div class="toolbar-title">
+            <span class="dot-green"></span>
+            <span>Interactive Geospatial Map</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="btnFitMap" class="btn btn-sm btn-ghost" title="Reset View & Fit to Geometries">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Fit Bounds
+            </button>
+            <button id="btnViewJson" class="btn btn-sm btn-ghost" title="View Full Raw JSON Response">
+              { } Raw JSON
+            </button>
+          </div>
+        </div>
+        <div id="map" class="map-view"></div>
+      </section>
+
+      <!-- Features Table -->
+      <section class="features-container glass-panel">
+        <div class="panel-toolbar">
+          <div class="filter-tabs" id="filterTabs">
+            <button class="tab-btn active" data-filter="ALL">All (<span id="countAll">0</span>)</button>
+            <button class="tab-btn" data-filter="Polygon">Polygons (<span id="countPoly">0</span>)</button>
+            <button class="tab-btn" data-filter="LineString">Lines (<span id="countLine">0</span>)</button>
+            <button class="tab-btn" data-filter="Point">Points (<span id="countPoint">0</span>)</button>
+          </div>
+        </div>
+
+        <div class="table-scroll-wrapper">
+          <table class="features-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Primary Measurement</th>
+                <th>Conversions</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="featuresTableBody">
+              <tr>
+                <td colspan="5" class="empty-state">No geospatial file processed yet. Upload a file above or click a demo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Raw JSON Modal -->
+  <div id="jsonModal" class="modal-overlay hidden">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3>API JSON Response Inspection</h3>
+        <button id="closeModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <pre><code id="jsonCodeViewer"></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

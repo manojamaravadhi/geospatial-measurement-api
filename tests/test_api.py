@@ -5,6 +5,19 @@ def test_health_check(client):
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+def test_dashboard_ui(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "AEREO" in response.text
+
+def test_demo_loader_kml(client):
+    response = client.post("/api/files/demo/kml")
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "COMPLETED"
+    assert data["feature_count"] >= 1
+
 def test_upload_kml_file(client, sample_kml_path):
     assert os.path.exists(sample_kml_path), "Sample KML file does not exist"
     with open(sample_kml_path, "rb") as f:
@@ -22,14 +35,17 @@ def test_upload_kml_file(client, sample_kml_path):
 
     file_id = data["id"]
 
-    # Test GET /api/files/{id}/
+    # Test GET /api/files/{id}/ and /api/files/{id} (both with and without trailing slash)
     info_resp = client.get(f"/api/files/{file_id}")
     assert info_resp.status_code == 200
     info_data = info_resp.json()
     assert info_data["id"] == file_id
     assert info_data["feature_count"] == data["feature_count"]
 
-    # Test GET /api/files/{id}/measurements/
+    info_resp_slash = client.get(f"/api/files/{file_id}/")
+    assert info_resp_slash.status_code == 200
+
+    # Test GET /api/files/{id}/measurements/ and without trailing slash
     meas_resp = client.get(f"/api/files/{file_id}/measurements")
     assert meas_resp.status_code == 200
     meas_data = meas_resp.json()
@@ -42,6 +58,9 @@ def test_upload_kml_file(client, sample_kml_path):
     assert first_feat["value"] > 0
     assert first_feat["unit"] == "sq_meters"
     assert "hectares" in first_feat["formatted_values"]
+
+    meas_resp_slash = client.get(f"/api/files/{file_id}/measurements/")
+    assert meas_resp_slash.status_code == 200
 
 def test_upload_shapefile_zip(client, sample_zip_path):
     assert os.path.exists(sample_zip_path), "Sample ZIP file does not exist"

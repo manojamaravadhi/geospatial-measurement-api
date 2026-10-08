@@ -1,6 +1,9 @@
 import logging
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routers import files
@@ -40,10 +43,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API Routers
 app.include_router(files.router, prefix=settings.API_PREFIX)
 
-@app.get("/", tags=["Health"])
-async def root():
+# Mount static assets
+static_path = Path(__file__).parent / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+@app.get("/", tags=["Dashboard UI"])
+async def dashboard_ui():
+    """Serves the interactive Geospatial Measurement Studio UI."""
+    index_file = static_path / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {
         "service": settings.PROJECT_NAME,
         "version": settings.PROJECT_VERSION,
