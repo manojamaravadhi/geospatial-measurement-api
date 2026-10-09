@@ -58,8 +58,9 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomControl: true,
   }).setView([12.9716, 77.5946], 12); // Bengaluru center
 
-  // Saved CARTO API key from localStorage (if any)
+  // Saved Keys from localStorage
   let savedCartoKey = localStorage.getItem("carto_api_key") || "";
+  let savedMapboxToken = localStorage.getItem("mapbox_token") || "";
 
   function getDarkTileLayer() {
     if (savedCartoKey) {
@@ -69,27 +70,71 @@ document.addEventListener("DOMContentLoaded", () => {
         subdomains: "abcd",
       });
     }
-    // 100% Free, NO API Key needed, Zero Watermark Esri Dark Canvas:
-    return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
-      attribution: '&copy; Esri Dark Canvas & OpenStreetMap',
+    // High-Resolution Esri Dark Canvas with City Names, Neighborhoods & Streets:
+    const darkBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '&copy; Esri, DeLorme, NAVTEQ',
       maxZoom: 16,
     });
+    const darkLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '',
+      maxZoom: 16,
+      opacity: 0.9,
+    });
+    return L.layerGroup([darkBase, darkLabels]);
+  }
+
+  function getSatelliteHybridLayer() {
+    const satImagery = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '&copy; Esri World Imagery',
+      maxZoom: 19,
+    });
+    const satPlaces = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '',
+      maxZoom: 19,
+      opacity: 0.95,
+    });
+    const satRoads = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '',
+      maxZoom: 19,
+      opacity: 0.9,
+    });
+    return L.layerGroup([satImagery, satPlaces, satRoads]);
+  }
+
+  function getMapboxLayer() {
+    if (!savedMapboxToken) return null;
+    return L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${savedMapboxToken}`, {
+      attribution: '&copy; <a href="https://www.mapbox.com/">Mapbox</a> &copy; OpenStreetMap',
+      tileSize: 512,
+      zoomOffset: -1,
+      maxZoom: 20,
+    });
+  }
+
+  function updateMapboxButtonVisibility() {
+    const btn = document.getElementById("btnMapboxLayer");
+    if (btn) {
+      if (savedMapboxToken) {
+        btn.classList.remove("hidden");
+      } else {
+        btn.classList.add("hidden");
+      }
+    }
   }
 
   // Tile Providers
   const tileProviders = {
     dark: getDarkTileLayer(),
-    satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-      attribution: '&copy; Esri World Imagery',
-      maxZoom: 19,
-    }),
+    satellite: getSatelliteHybridLayer(),
     streets: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
     }),
+    mapbox: getMapboxLayer(),
   };
 
   let activeBasemap = tileProviders.dark.addTo(map);
+  updateMapboxButtonVisibility();
 
   // Basemap Switcher
   document.querySelectorAll(".basemap-btn").forEach((btn) => {
@@ -101,8 +146,14 @@ document.addEventListener("DOMContentLoaded", () => {
       map.removeLayer(activeBasemap);
       if (mapType === "dark") {
         tileProviders.dark = getDarkTileLayer();
+        activeBasemap = tileProviders.dark;
+      } else if (mapType === "mapbox") {
+        tileProviders.mapbox = getMapboxLayer();
+        activeBasemap = tileProviders.mapbox || tileProviders.dark;
+      } else {
+        activeBasemap = tileProviders[mapType] || tileProviders.dark;
       }
-      activeBasemap = tileProviders[mapType].addTo(map);
+      activeBasemap.addTo(map);
     });
   });
 
@@ -635,17 +686,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnMapKey = document.getElementById("btnMapKey");
   const keyModal = document.getElementById("keyModal");
   const closeKeyModal = document.getElementById("closeKeyModal");
+  const mapboxTokenInput = document.getElementById("mapboxTokenInput");
   const cartoApiKeyInput = document.getElementById("cartoApiKeyInput");
   const btnSaveKey = document.getElementById("btnSaveKey");
   const btnResetKey = document.getElementById("btnResetKey");
 
-  if (cartoApiKeyInput) {
-    cartoApiKeyInput.value = savedCartoKey;
-  }
+  if (mapboxTokenInput) mapboxTokenInput.value = savedMapboxToken;
+  if (cartoApiKeyInput) cartoApiKeyInput.value = savedCartoKey;
 
   if (btnMapKey) {
     btnMapKey.addEventListener("click", () => {
-      cartoApiKeyInput.value = savedCartoKey;
+      if (mapboxTokenInput) mapboxTokenInput.value = savedMapboxToken;
+      if (cartoApiKeyInput) cartoApiKeyInput.value = savedCartoKey;
       keyModal.classList.remove("hidden");
     });
   }
@@ -664,31 +716,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnSaveKey) {
     btnSaveKey.addEventListener("click", () => {
-      savedCartoKey = cartoApiKeyInput.value.trim();
+      savedMapboxToken = (mapboxTokenInput ? mapboxTokenInput.value.trim() : "");
+      savedCartoKey = (cartoApiKeyInput ? cartoApiKeyInput.value.trim() : "");
+
+      if (savedMapboxToken) {
+        localStorage.setItem("mapbox_token", savedMapboxToken);
+      } else {
+        localStorage.removeItem("mapbox_token");
+      }
+
       if (savedCartoKey) {
         localStorage.setItem("carto_api_key", savedCartoKey);
-        showToast("CARTO API Key saved!");
       } else {
         localStorage.removeItem("carto_api_key");
-        showToast("Using 100% Free Esri Dark Basemap (No Key Needed)");
       }
+
+      updateMapboxButtonVisibility();
       keyModal.classList.add("hidden");
+
       map.removeLayer(activeBasemap);
       tileProviders.dark = getDarkTileLayer();
-      activeBasemap = tileProviders.dark.addTo(map);
+      tileProviders.satellite = getSatelliteHybridLayer();
+      tileProviders.mapbox = getMapboxLayer();
+
+      if (savedMapboxToken && tileProviders.mapbox) {
+        document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+        document.getElementById("btnMapboxLayer")?.classList.add("active");
+        activeBasemap = tileProviders.mapbox.addTo(map);
+        showToast("Mapbox High-Res Vector Labels Activated!");
+      } else {
+        document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelector('.basemap-btn[data-map="dark"]')?.classList.add("active");
+        activeBasemap = tileProviders.dark.addTo(map);
+        showToast("Location & Street Labels Updated!");
+      }
     });
   }
 
   if (btnResetKey) {
     btnResetKey.addEventListener("click", () => {
+      savedMapboxToken = "";
       savedCartoKey = "";
+      localStorage.removeItem("mapbox_token");
       localStorage.removeItem("carto_api_key");
+      if (mapboxTokenInput) mapboxTokenInput.value = "";
       if (cartoApiKeyInput) cartoApiKeyInput.value = "";
+      updateMapboxButtonVisibility();
       keyModal.classList.add("hidden");
+
       map.removeLayer(activeBasemap);
       tileProviders.dark = getDarkTileLayer();
+      tileProviders.satellite = getSatelliteHybridLayer();
+      tileProviders.mapbox = null;
+
+      document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelector('.basemap-btn[data-map="dark"]')?.classList.add("active");
       activeBasemap = tileProviders.dark.addTo(map);
-      showToast("Reset to Free Esri Dark Basemap (No Key Needed)");
+      showToast("Reset to Free Basemaps with Location Labels");
     });
   }
 

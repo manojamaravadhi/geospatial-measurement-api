@@ -237,12 +237,13 @@
             <!-- Basemap Selector -->
             <div class="basemap-switch" title="Change map background">
               <button class="basemap-btn active" data-map="dark">🌙 Dark</button>
-              <button class="basemap-btn" data-map="satellite">🛰️ Satellite</button>
+              <button class="basemap-btn" data-map="satellite">🛰️ Satellite Hybrid</button>
               <button class="basemap-btn" data-map="streets">🗺️ Streets</button>
+              <button id="btnMapboxLayer" class="basemap-btn hidden" data-map="mapbox">✨ Mapbox</button>
             </div>
 
-            <button id="btnMapKey" class="tool-btn" title="Configure Map Provider / Optional API Key">
-              🔑 Key
+            <button id="btnMapKey" class="tool-btn" title="Configure Mapbox / CARTO API Keys">
+              🔑 Map Key
             </button>
 
             <button id="btnFitMap" class="tool-btn" title="Center map on geometries">
@@ -343,28 +344,39 @@
 
   <!-- Map API Key Modal -->
   <div id="keyModal" class="modal-backdrop hidden">
-    <div class="modal-box glass-card" style="max-width: 500px;">
+    <div class="modal-box glass-card" style="max-width: 540px;">
       <div class="modal-top">
         <div class="modal-title-wrap">
           <span class="code-icon">🔑</span>
-          <h3>Basemap API Key Settings</h3>
+          <h3>Basemap & High-Res Location Labels</h3>
         </div>
         <button id="closeKeyModal" class="modal-close-btn">&times;</button>
       </div>
       <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
-        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #a7f3d0; line-height: 1.4;">
-          ✨ <strong>Zero Key Required:</strong> By default, we use <strong>100% Free Esri Dark Canvas, Satellite, and OpenStreetMap</strong> tiles with zero watermarks!
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #a7f3d0; line-height: 1.45;">
+          🏙️ <strong>Location Names Enabled:</strong> City names, districts, streets, and highways are now rendered by default with zero watermarks on <strong>Dark Canvas</strong>, <strong>Satellite Hybrid</strong>, and <strong>Streets</strong>!
         </div>
-        <p style="font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
-          If you have a personal <strong>CARTO</strong> account from <a href="https://carto.com/basemaps/" target="_blank" style="color: #38bdf8; text-decoration: underline;">carto.com</a>, you can paste your key below to remove the watermark from CARTO tiles:
-        </p>
+
         <div>
-          <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">CARTO Basemap API Key:</label>
+          <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">
+            1. Mapbox Access Token (Recommended for High-Res Vector Labels):
+          </label>
+          <p style="font-size: 0.75rem; color: #94a3b8; margin: 2px 0 6px 0;">
+            Get a free token from <a href="https://account.mapbox.com/access-tokens/" target="_blank" style="color: #38bdf8; text-decoration: underline;">mapbox.com</a> (starts with <code>pk.eyJ...</code>)
+          </p>
+          <input type="text" id="mapboxTokenInput" class="search-input" placeholder="Paste Mapbox token (pk.eyJ...)">
+        </div>
+
+        <div>
+          <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">
+            2. CARTO API Key (Optional):
+          </label>
           <input type="text" id="cartoApiKeyInput" class="search-input" style="margin-top: 6px;" placeholder="Paste CARTO API key...">
         </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
-          <button id="btnResetKey" class="tool-btn" style="padding: 7px 14px;">Use Free Esri Dark</button>
-          <button id="btnSaveKey" class="btn-copy" style="padding: 7px 16px;">Save Key</button>
+          <button id="btnResetKey" class="tool-btn" style="padding: 7px 14px;">Clear Keys</button>
+          <button id="btnSaveKey" class="btn-copy" style="padding: 7px 16px;">Save & Apply</button>
         </div>
       </div>
     </div>
