@@ -56,11 +56,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let searchQuery = "";
   let mapLayers = [];
 
-  // Toggle Sidebar Collapse
+  // Toggle Sidebar Collapse & Expand
+  const btnExpandSidebar = document.getElementById("btnExpandSidebar");
+
+  function collapseSidebar() {
+    sidebar.classList.add("collapsed");
+    if (btnExpandSidebar) btnExpandSidebar.classList.remove("hidden");
+    fitMapToBounds();
+  }
+
+  function expandSidebar() {
+    sidebar.classList.remove("collapsed");
+    if (btnExpandSidebar) btnExpandSidebar.classList.add("hidden");
+    fitMapToBounds();
+  }
+
   if (btnToggleSidebar) {
-    btnToggleSidebar.addEventListener("click", () => {
-      sidebar.classList.toggle("collapsed");
-    });
+    btnToggleSidebar.addEventListener("click", collapseSidebar);
+  }
+
+  if (btnExpandSidebar) {
+    btnExpandSidebar.addEventListener("click", expandSidebar);
   }
 
   // Initialize Leaflet Map (Full Screen)
