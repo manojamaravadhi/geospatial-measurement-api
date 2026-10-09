@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AEREO | Geospatial Measurement Studio</title>
+  <title>AEREO | GIS Mission Control</title>
   
-  <!-- Fonts: Plus Jakarta Sans for clean human readability, JetBrains Mono for metrics -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,326 +13,207 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
-<body>
-  <!-- Ambient background glow accents -->
-  <div class="ambient-glow glow-top"></div>
-  <div class="ambient-glow glow-bottom"></div>
+<body class="mission-control-body">
+  <!-- Immersive Full-Screen Leaflet Map Canvas -->
+  <div id="map" class="fullscreen-map"></div>
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="brand-group">
-      <div class="brand-badge">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Floating Mission Control Top Header -->
+  <header class="floating-header glass-hud">
+    <div class="hud-brand">
+      <div class="hud-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
           <polyline points="2 17 12 22 22 17"></polyline>
           <polyline points="2 12 12 17 22 12"></polyline>
         </svg>
       </div>
-      <div class="brand-text">
-        <div class="brand-title-row">
-          <span class="brand-title">AEREO</span>
-          <span class="brand-pill">Measurement Studio</span>
+      <div>
+        <div class="hud-brand-title">
+          <span>AEREO</span> <em>GIS Mission Control</em>
         </div>
-        <p class="brand-tagline">Land & Infrastructure Survey Analytics • Survey-Grade Accuracy</p>
+        <div class="hud-sub">Real-Time Land & Infrastructure Measurements</div>
       </div>
     </div>
 
-    <div class="header-controls">
-      <!-- Unit System Switcher -->
-      <div class="unit-toggle-group" title="Switch preferred display measurement unit">
-        <span class="unit-label">Units:</span>
-        <button id="unitMetric" class="unit-btn active" data-unit="metric">Metric (ha / m²)</button>
-        <button id="unitAcre" class="unit-btn" data-unit="acre">Acreage (Acres / ft²)</button>
+    <!-- Quick Demos in Header -->
+    <div class="hud-demos">
+      <span class="hud-label">⚡ DEMO:</span>
+      <button id="btnDemoKml" class="hud-btn" title="Load drone agricultural survey field">🌾 Field (KML)</button>
+      <button id="btnDemoShp" class="hud-btn" title="Load urban parcels Shapefile">🏙️ Parcels (.zip)</button>
+    </div>
+
+    <!-- Basemap Selector -->
+    <div class="basemap-pill-group">
+      <button class="basemap-pill active" data-map="dark">🌙 Dark</button>
+      <button class="basemap-pill" data-map="satellite">🛰️ Satellite Hybrid</button>
+      <button class="basemap-pill" data-map="streets">🗺️ Streets</button>
+      <button id="btnMapboxLayer" class="basemap-pill hidden" data-map="mapbox">✨ Mapbox</button>
+    </div>
+
+    <!-- Unit Switcher & Actions -->
+    <div class="hud-actions">
+      <div class="unit-pill-switch" title="Toggle measurement units">
+        <button id="unitMetric" class="unit-toggle-btn active" data-unit="metric">Metric (ha)</button>
+        <button id="unitAcre" class="unit-toggle-btn" data-unit="acre">Acres</button>
       </div>
 
-      <div class="system-status">
-        <span class="pulse-dot"></span>
-        <span class="status-name">Engine Ready</span>
-      </div>
+      <button id="btnMapKey" class="hud-icon-btn" title="Basemap API Key Settings">
+        🔑 Key
+      </button>
 
-      <a href="/docs" target="_blank" class="btn-api-docs" title="Explore OpenAPI Swagger Documentation">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-        </svg>
-        API Docs
+      <a href="/docs" target="_blank" class="hud-icon-btn docs-btn" title="OpenAPI / Swagger Documentation">
+        Swagger Docs
       </a>
     </div>
   </header>
 
-  <main class="dashboard-shell">
-    <!-- Ingestion & Quick Action Strip -->
-    <section class="ingestion-section glass-card">
-      <div class="ingestion-layout">
-        <!-- Interactive Dropzone -->
-        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload geospatial file">
-          <input type="file" id="fileInput" accept=".zip,.kml" hidden>
-          <div class="dropzone-main">
-            <div class="upload-bubble">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-            </div>
-            <div class="dropzone-text-block">
-              <p class="dropzone-primary">
-                <strong>Drop your survey file here</strong> or <span class="highlight-browse">browse files</span>
-              </p>
-              <p class="dropzone-secondary">
-                Accepts <span class="ext-badge">.kml</span> (Google Earth / Drone) or <span class="ext-badge">.zip</span> (ESRI Shapefile with .shp, .shx, .dbf, .prj)
-              </p>
-            </div>
-          </div>
+  <!-- Floating Left Sidebar (Mission Control Drawer) -->
+  <aside id="sidebar" class="floating-sidebar glass-hud">
+    <div class="sidebar-header">
+      <div class="sidebar-title-group">
+        <span class="pulse-indicator"></span>
+        <h2 class="sidebar-heading">Survey Telemetry</h2>
+      </div>
+      <button id="btnToggleSidebar" class="sidebar-toggle-btn" title="Collapse / Expand panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+    </div>
 
-          <div id="uploadLoader" class="upload-progress-state hidden">
-            <div class="orbit-spinner"></div>
-            <div>
-              <p class="loader-heading">Transforming & Projecting Geometries</p>
-              <p class="loader-sub">Projecting from angular degrees (EPSG:4326) to optimal UTM zone...</p>
-            </div>
+    <div class="sidebar-scrollable-content">
+      <!-- File Ingestion Dropzone -->
+      <div id="dropzone" class="hud-dropzone" tabindex="0">
+        <input type="file" id="fileInput" accept=".zip,.kml" hidden>
+        <div class="dropzone-idle-content">
+          <div class="dropzone-icon-ring">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div>
+            <div class="dropzone-primary-text"><strong>Drop survey file</strong> or <u>browse</u></div>
+            <div class="dropzone-tags"><span>.kml</span> <span>.zip shapefile</span></div>
           </div>
         </div>
 
-        <!-- Pre-Loaded Sample Data Cards -->
-        <div class="demo-samples-card">
-          <div class="demo-header">
-            <span class="demo-title">⚡ Instant Demo Datasets</span>
-            <span class="demo-help">One-click test sample</span>
-          </div>
-
-          <div class="demo-cards-row">
-            <button id="btnDemoKml" class="demo-card-btn" title="Load agricultural drone survey sample (KML)">
-              <div class="demo-card-icon kml-icon">🌾</div>
-              <div class="demo-card-info">
-                <span class="demo-card-title">Survey Field (KML)</span>
-                <span class="demo-card-desc">Drone agriculture parcel</span>
-              </div>
-            </button>
-
-            <button id="btnDemoShp" class="demo-card-btn" title="Load urban cadastral parcels (Shapefile)">
-              <div class="demo-card-icon shp-icon">🏙️</div>
-              <div class="demo-card-info">
-                <span class="demo-card-title">Commercial Parcels (.zip)</span>
-                <span class="demo-card-desc">Cadastral boundary shapes</span>
-              </div>
-            </button>
-          </div>
-
-          <!-- Processed History Dropdown -->
-          <div class="history-row">
-            <span class="history-label">Active Session File:</span>
-            <select id="fileSelect" class="history-select">
-              <option value="" disabled selected>No file processed yet...</option>
-            </select>
-          </div>
+        <div id="uploadLoader" class="dropzone-loading hidden">
+          <div class="spinner-ring"></div>
+          <span>Reprojecting coordinates into UTM metric zone...</span>
         </div>
       </div>
-    </section>
 
-    <!-- Error/Notice Alert Banner -->
-    <div id="alertBanner" class="alert-box hidden">
-      <div class="alert-content">
-        <span class="alert-icon">⚠️</span>
+      <!-- File Switcher -->
+      <div class="active-file-selector">
+        <span class="selector-label">Survey File:</span>
+        <select id="fileSelect" class="hud-select">
+          <option value="" disabled selected>No survey loaded...</option>
+        </select>
+      </div>
+
+      <!-- Error Banner -->
+      <div id="alertBanner" class="hud-alert hidden">
         <span id="alertMessage"></span>
+        <button id="alertClose" class="hud-alert-close">&times;</button>
       </div>
-      <button id="alertClose" class="alert-dismiss" aria-label="Close message">&times;</button>
+
+      <!-- Key Telemetry Metrics -->
+      <div class="telemetry-grid">
+        <div class="telemetry-card card-emerald">
+          <div class="telemetry-label">TOTAL AREA</div>
+          <div class="telemetry-metric" id="valTotalArea">—</div>
+          <div class="telemetry-sub" id="subTotalHectares">No polygon data</div>
+        </div>
+
+        <div class="telemetry-card card-amber">
+          <div class="telemetry-label">TOTAL LENGTH</div>
+          <div class="telemetry-metric" id="valTotalLength">—</div>
+          <div class="telemetry-sub" id="subTotalKm">No linear paths</div>
+        </div>
+
+        <div class="telemetry-card card-cyan">
+          <div class="telemetry-label">FEATURES</div>
+          <div class="telemetry-metric" id="valTotalFeatures">0</div>
+          <div class="telemetry-sub" id="subFeatureBreakdown">0 parcels • 0 lines</div>
+        </div>
+
+        <div class="telemetry-card card-violet">
+          <div class="telemetry-label">METRIC PROJECTION</div>
+          <div class="telemetry-metric metric-code" id="valProjectedCrs">—</div>
+          <div class="telemetry-sub" id="subOriginalCrs">Source: Unset</div>
+        </div>
+      </div>
+
+      <!-- Feature Explorer & Filter -->
+      <div class="features-explorer-block">
+        <div class="explorer-top-bar">
+          <span class="explorer-heading">Feature Parcels</span>
+          <div class="filter-chips" id="filterTabs">
+            <button class="chip-btn active" data-filter="ALL">All (<span id="countAll">0</span>)</button>
+            <button class="chip-btn" data-filter="Polygon">Parcels (<span id="countPoly">0</span>)</button>
+            <button class="chip-btn" data-filter="LineString">Lines (<span id="countLine">0</span>)</button>
+            <button class="chip-btn" data-filter="Point">Points (<span id="countPoint">0</span>)</button>
+          </div>
+        </div>
+
+        <div class="search-input-wrap">
+          <input type="text" id="searchInput" class="hud-search-field" placeholder="Filter by name, ID, or category...">
+        </div>
+
+        <!-- Scrollable Feature List -->
+        <div class="features-list-scrollable" id="featuresList">
+          <div class="empty-list-state">
+            <div class="empty-list-icon">📍</div>
+            <p><strong>Ready for survey analysis</strong></p>
+            <p>Upload a file or click one of the quick demos above.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export & Payload Bar -->
+      <div class="sidebar-footer-actions">
+        <button id="btnCopyGeoJson" class="btn-hud-action" title="Copy full GeoJSON">
+          📋 Copy GeoJSON
+        </button>
+        <button id="btnViewJson" class="btn-hud-action" title="Inspect raw API payload">
+          { } Raw JSON
+        </button>
+      </div>
     </div>
+  </aside>
 
-    <!-- KPI Metric Cards Grid -->
-    <section class="kpi-grid">
-      <!-- Total Area -->
-      <div class="kpi-card glass-card kpi-emerald">
-        <div class="kpi-top">
-          <span class="kpi-title">SURVEYED AREA</span>
-          <div class="kpi-icon-wrap emerald-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="3" y1="9" x2="21" y2="9"></line>
-              <line x1="9" y1="21" x2="9" y2="9"></line>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-value-row">
-          <span class="kpi-value" id="valTotalArea">—</span>
-        </div>
-        <div class="kpi-sub-row">
-          <span class="kpi-sub-tag" id="subTotalHectares">Upload a survey to calculate</span>
-        </div>
-      </div>
+  <!-- Floating Map Controls (Bottom Right) -->
+  <div class="floating-map-tools">
+    <button id="btnFitMap" class="map-fab-btn" title="Fit map view to geometries">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+      <span>Fit Bounds</span>
+    </button>
+  </div>
 
-      <!-- Total Length / Boundaries -->
-      <div class="kpi-card glass-card kpi-amber">
-        <div class="kpi-top">
-          <span class="kpi-title">ROADS & PERIMETERS</span>
-          <div class="kpi-icon-wrap amber-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 14l6-6 4 4 6-6"></path>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-value-row">
-          <span class="kpi-value" id="valTotalLength">—</span>
-        </div>
-        <div class="kpi-sub-row">
-          <span class="kpi-sub-tag" id="subTotalKm">No linear paths loaded</span>
-        </div>
-      </div>
-
-      <!-- Feature Counts -->
-      <div class="kpi-card glass-card kpi-cyan">
-        <div class="kpi-top">
-          <span class="kpi-title">GEOSPATIAL FEATURES</span>
-          <div class="kpi-icon-wrap cyan-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-value-row">
-          <span class="kpi-value" id="valTotalFeatures">0</span>
-        </div>
-        <div class="kpi-sub-row">
-          <span class="kpi-sub-tag" id="subFeatureBreakdown">Polygons, Lines & Points</span>
-        </div>
-      </div>
-
-      <!-- Projection CRS -->
-      <div class="kpi-card glass-card kpi-violet">
-        <div class="kpi-top">
-          <span class="kpi-title">METRIC PROJECTION</span>
-          <div class="kpi-icon-wrap violet-icon" title="Reprojected from angular degrees to UTM for exact meters">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-value-row">
-          <span class="kpi-value crs-tag" id="valProjectedCrs">—</span>
-        </div>
-        <div class="kpi-sub-row">
-          <span class="kpi-sub-tag" id="subOriginalCrs">Source: Unloaded</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Workspace: Interactive Map & Feature Inspector -->
-    <div class="workspace-layout">
-      <!-- Interactive Map Window -->
-      <section class="map-panel glass-card">
-        <div class="panel-header">
-          <div class="panel-title-block">
-            <span class="indicator-dot"></span>
-            <span class="panel-heading">Spatial View & Layer Inspection</span>
-          </div>
-
-          <div class="map-toolbar">
-            <!-- Basemap Selector -->
-            <div class="basemap-switch" title="Change map background">
-              <button class="basemap-btn active" data-map="dark">🌙 Dark</button>
-              <button class="basemap-btn" data-map="satellite">🛰️ Satellite Hybrid</button>
-              <button class="basemap-btn" data-map="streets">🗺️ Streets</button>
-              <button id="btnMapboxLayer" class="basemap-btn hidden" data-map="mapbox">✨ Mapbox</button>
-            </div>
-
-            <button id="btnMapKey" class="tool-btn" title="Configure Mapbox / CARTO API Keys">
-              🔑 Map Key
-            </button>
-
-            <button id="btnFitMap" class="tool-btn" title="Center map on geometries">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              Fit View
-            </button>
-
-            <button id="btnViewJson" class="tool-btn" title="View formatted API JSON payload">
-              { } JSON
-            </button>
-          </div>
-        </div>
-
-        <div id="map" class="map-viewport"></div>
-
-        <!-- Map Floating Legend -->
-        <div class="map-legend">
-          <div class="legend-item"><span class="legend-color poly-color"></span> Polygons (Land)</div>
-          <div class="legend-item"><span class="legend-color line-color"></span> Lines (Roads)</div>
-          <div class="legend-item"><span class="legend-color pt-color"></span> Points (Markers)</div>
-        </div>
-      </section>
-
-      <!-- Feature Measurement Table -->
-      <section class="table-panel glass-card">
-        <div class="panel-header table-panel-header">
-          <!-- Filter Tabs -->
-          <div class="filter-pills" id="filterTabs">
-            <button class="pill-btn active" data-filter="ALL">All (<span id="countAll">0</span>)</button>
-            <button class="pill-btn" data-filter="Polygon">Land Parcels (<span id="countPoly">0</span>)</button>
-            <button class="pill-btn" data-filter="LineString">Lines (<span id="countLine">0</span>)</button>
-            <button class="pill-btn" data-filter="Point">Points (<span id="countPoint">0</span>)</button>
-          </div>
-
-          <!-- Search Input -->
-          <div class="table-search-wrap">
-            <input type="text" id="searchInput" class="search-input" placeholder="Search features by name / attribute...">
-          </div>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th style="width: 110px;">Type</th>
-                <th>Feature Details</th>
-                <th>Calculated Measurement</th>
-                <th style="width: 75px; text-align: center;">Locate</th>
-              </tr>
-            </thead>
-            <tbody id="featuresTableBody">
-              <tr>
-                <td colspan="5" class="empty-state-cell">
-                  <div class="empty-guide">
-                    <span class="empty-icon">🗺️</span>
-                    <p class="empty-title">Ready for your survey</p>
-                    <p class="empty-desc">Upload a <code>.kml</code> or <code>.zip</code> shapefile above, or click a demo dataset to start.</p>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Table Footer Summary -->
-        <div class="table-footer-status">
-          <span id="tableStatusText">No active dataset</span>
-          <button id="btnCopyGeoJson" class="btn-text-action" title="Copy features as GeoJSON to clipboard">
-            📋 Copy GeoJSON
-          </button>
-        </div>
-      </section>
-    </div>
-  </main>
+  <!-- Floating Legend (Bottom Center) -->
+  <div class="floating-hud-legend">
+    <div class="legend-chip"><span class="legend-dot dot-poly"></span> Land Parcels</div>
+    <div class="legend-chip"><span class="legend-dot dot-line"></span> Linear Paths</div>
+    <div class="legend-chip"><span class="legend-dot dot-pt"></span> Control Points</div>
+  </div>
 
   <!-- Raw JSON Modal -->
   <div id="jsonModal" class="modal-backdrop hidden">
-    <div class="modal-box glass-card">
+    <div class="modal-box glass-hud" style="max-width: 800px;">
       <div class="modal-top">
         <div class="modal-title-wrap">
           <span class="code-icon">{ }</span>
           <h3>Raw API Output & Measurement Payload</h3>
         </div>
         <div class="modal-top-actions">
-          <button id="btnCopyJson" class="btn-copy">Copy JSON</button>
+          <button id="btnCopyJson" class="hud-btn">Copy JSON</button>
           <button id="closeModal" class="modal-close-btn">&times;</button>
         </div>
       </div>
@@ -344,39 +225,39 @@
 
   <!-- Map API Key Modal -->
   <div id="keyModal" class="modal-backdrop hidden">
-    <div class="modal-box glass-card" style="max-width: 540px;">
+    <div class="modal-box glass-hud" style="max-width: 520px;">
       <div class="modal-top">
         <div class="modal-title-wrap">
           <span class="code-icon">🔑</span>
-          <h3>Basemap & High-Res Location Labels</h3>
+          <h3>Basemap & High-Res Vector Labels</h3>
         </div>
         <button id="closeKeyModal" class="modal-close-btn">&times;</button>
       </div>
       <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
-        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #a7f3d0; line-height: 1.45;">
-          🏙️ <strong>Location Names Enabled:</strong> City names, districts, streets, and highways are now rendered by default with zero watermarks on <strong>Dark Canvas</strong>, <strong>Satellite Hybrid</strong>, and <strong>Streets</strong>!
+        <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #a7f3d0; line-height: 1.45;">
+          🏙️ <strong>Free Location Names Enabled:</strong> City names, districts, and highways are rendered by default with zero watermarks on <strong>Dark Canvas</strong>, <strong>Satellite Hybrid</strong>, and <strong>Streets</strong>!
         </div>
 
         <div>
           <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">
-            1. Mapbox Access Token (Recommended for High-Res Vector Labels):
+            Mapbox Access Token (Optional):
           </label>
-          <p style="font-size: 0.75rem; color: #94a3b8; margin: 2px 0 6px 0;">
-            Get a free token from <a href="https://account.mapbox.com/access-tokens/" target="_blank" style="color: #38bdf8; text-decoration: underline;">mapbox.com</a> (starts with <code>pk.eyJ...</code>)
+          <p style="font-size: 0.74rem; color: #94a3b8; margin: 2px 0 6px 0;">
+            Free token from <a href="https://account.mapbox.com/access-tokens/" target="_blank" style="color: #38bdf8;">mapbox.com</a> (starts with <code>pk.eyJ...</code>)
           </p>
-          <input type="text" id="mapboxTokenInput" class="search-input" placeholder="Paste Mapbox token (pk.eyJ...)">
+          <input type="text" id="mapboxTokenInput" class="hud-search-field" placeholder="Paste Mapbox token (pk.eyJ...)">
         </div>
 
         <div>
           <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">
-            2. CARTO API Key (Optional):
+            CARTO API Key (Optional):
           </label>
-          <input type="text" id="cartoApiKeyInput" class="search-input" style="margin-top: 6px;" placeholder="Paste CARTO API key...">
+          <input type="text" id="cartoApiKeyInput" class="hud-search-field" style="margin-top: 6px;" placeholder="Paste CARTO API key...">
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
-          <button id="btnResetKey" class="tool-btn" style="padding: 7px 14px;">Clear Keys</button>
-          <button id="btnSaveKey" class="btn-copy" style="padding: 7px 16px;">Save & Apply</button>
+          <button id="btnResetKey" class="hud-btn">Clear Keys</button>
+          <button id="btnSaveKey" class="hud-btn btn-primary-hud">Save & Apply</button>
         </div>
       </div>
     </div>
@@ -387,6 +268,6 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=2"></script>
 </body>
 </html>

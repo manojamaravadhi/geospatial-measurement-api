@@ -1,4 +1,4 @@
-// AEREO Geospatial Measurement Studio - Interactive Frontend Controller
+// AEREO GIS Mission Control - Client Controller
 
 document.addEventListener("DOMContentLoaded", () => {
   // DOM Elements
@@ -12,11 +12,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const alertMessage = document.getElementById("alertMessage");
   const alertClose = document.getElementById("alertClose");
 
+  // Sidebar Controls
+  const sidebar = document.getElementById("sidebar");
+  const btnToggleSidebar = document.getElementById("btnToggleSidebar");
+
   // Units Toggle
   const unitMetric = document.getElementById("unitMetric");
   const unitAcre = document.getElementById("unitAcre");
 
-  // KPI Metrics
+  // Telemetry Metrics
   const valTotalArea = document.getElementById("valTotalArea");
   const subTotalHectares = document.getElementById("subTotalHectares");
   const valTotalLength = document.getElementById("valTotalLength");
@@ -26,18 +30,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const valProjectedCrs = document.getElementById("valProjectedCrs");
   const subOriginalCrs = document.getElementById("subOriginalCrs");
 
-  // Workspace Table & Filters
-  const featuresTableBody = document.getElementById("featuresTableBody");
+  // Feature Explorer
+  const featuresList = document.getElementById("featuresList");
   const filterTabs = document.getElementById("filterTabs");
   const countAll = document.getElementById("countAll");
   const countPoly = document.getElementById("countPoly");
   const countLine = document.getElementById("countLine");
   const countPoint = document.getElementById("countPoint");
   const searchInput = document.getElementById("searchInput");
-  const tableStatusText = document.getElementById("tableStatusText");
   const btnCopyGeoJson = document.getElementById("btnCopyGeoJson");
 
-  // Map Controls & Modal
+  // Map Controls & Modals
   const btnFitMap = document.getElementById("btnFitMap");
   const btnViewJson = document.getElementById("btnViewJson");
   const jsonModal = document.getElementById("jsonModal");
@@ -49,16 +52,25 @@ document.addEventListener("DOMContentLoaded", () => {
   // State
   let currentMeasurementsData = null;
   let activeFilter = "ALL";
-  let activeUnitSystem = "metric"; // 'metric' or 'acre'
+  let activeUnitSystem = "metric";
   let searchQuery = "";
   let mapLayers = [];
 
-  // Initialize Leaflet Map
+  // Toggle Sidebar Collapse
+  if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener("click", () => {
+      sidebar.classList.toggle("collapsed");
+    });
+  }
+
+  // Initialize Leaflet Map (Full Screen)
   const map = L.map("map", {
-    zoomControl: true,
+    zoomControl: false, // Cleaner HUD look; we provide a custom Fit button and standard zoom at top right if needed
   }).setView([12.9716, 77.5946], 12); // Bengaluru center
 
-  // Saved Keys from localStorage
+  L.control.zoom({ position: "topright" }).addTo(map);
+
+  // Basemap & Tile Providers with Location Names
   let savedCartoKey = localStorage.getItem("carto_api_key") || "";
   let savedMapboxToken = localStorage.getItem("mapbox_token") || "";
 
@@ -122,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Tile Providers
   const tileProviders = {
     dark: getDarkTileLayer(),
     satellite: getSatelliteHybridLayer(),
@@ -137,9 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
   updateMapboxButtonVisibility();
 
   // Basemap Switcher
-  document.querySelectorAll(".basemap-btn").forEach((btn) => {
+  document.querySelectorAll(".basemap-pill").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".basemap-pill").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       const mapType = btn.getAttribute("data-map");
 
@@ -237,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await fetchFileList();
       fileSelect.value = fileInfo.id;
       await loadFileMeasurements(fileInfo.id);
-      showToast(`Processed "${file.name}" successfully!`);
+      showToast(`Processed "${file.name}"!`);
     } catch (err) {
       showAlert(err.message);
     } finally {
@@ -258,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await fetchFileList();
       fileSelect.value = fileInfo.id;
       await loadFileMeasurements(fileInfo.id);
-      showToast(`Loaded ${type.toUpperCase()} sample dataset!`);
+      showToast(`Loaded ${type.toUpperCase()} survey!`);
     } catch (err) {
       showAlert(err.message);
     } finally {
@@ -285,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Rendering UI ---
   function renderDashboard(data) {
-    // 1. Total Area KPI
+    // 1. Total Area
     const totalArea = data.summary.total_area_sq_meters;
     if (totalArea > 0) {
       const formatted = formatArea(totalArea);
@@ -293,10 +304,10 @@ document.addEventListener("DOMContentLoaded", () => {
       subTotalHectares.textContent = formatted.secondary;
     } else {
       valTotalArea.textContent = "0 ha";
-      subTotalHectares.textContent = "No polygon area measured";
+      subTotalHectares.textContent = "No polygon area";
     }
 
-    // 2. Total Length KPI
+    // 2. Total Length
     const totalLength = data.summary.total_length_meters;
     if (totalLength > 0) {
       const formatted = formatLength(totalLength);
@@ -304,34 +315,31 @@ document.addEventListener("DOMContentLoaded", () => {
       subTotalKm.textContent = formatted.secondary;
     } else {
       valTotalLength.textContent = "0 km";
-      subTotalKm.textContent = "No road/path length measured";
+      subTotalKm.textContent = "No road length";
     }
 
-    // 3. Feature Count KPI
+    // 3. Features Count
     valTotalFeatures.textContent = data.feature_count.toLocaleString();
     const bd = data.summary.geometry_breakdown || {};
     const parts = [];
     if (bd["Polygon"] || bd["MultiPolygon"]) parts.push(`${(bd["Polygon"] || 0) + (bd["MultiPolygon"] || 0)} Parcels`);
     if (bd["LineString"] || bd["MultiLineString"]) parts.push(`${(bd["LineString"] || 0) + (bd["MultiLineString"] || 0)} Lines`);
     if (bd["Point"] || bd["MultiPoint"]) parts.push(`${(bd["Point"] || 0) + (bd["MultiPoint"] || 0)} Points`);
-    subFeatureBreakdown.textContent = parts.join(" • ") || "Features analyzed";
+    subFeatureBreakdown.textContent = parts.join(" • ") || "Analyzed";
 
-    // 4. CRS Projection KPI
+    // 4. CRS Projection
     valProjectedCrs.textContent = data.projected_crs || "EPSG:32643";
     subOriginalCrs.textContent = `Source: ${data.original_crs || "EPSG:4326"}`;
 
-    // 5. Filter Tab Counts
+    // 5. Counts for filter pills
     countAll.textContent = data.measurements.length;
     countPoly.textContent = (bd["Polygon"] || 0) + (bd["MultiPolygon"] || 0);
     countLine.textContent = (bd["LineString"] || 0) + (bd["MultiLineString"] || 0);
     countPoint.textContent = (bd["Point"] || 0) + (bd["MultiPoint"] || 0);
 
-    // 6. Table Status Footer
-    tableStatusText.textContent = `${data.filename} • ${data.measurements.length} features detected`;
-
-    // 7. Render Map & Table
+    // 6. Render Map & Feature Cards
     renderMapFeatures(data.measurements);
-    renderTable(data.measurements);
+    renderFeaturesList(data.measurements);
   }
 
   function renderMapFeatures(measurements) {
@@ -353,10 +361,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const style = {
         color: isPoly ? "#10b981" : isLine ? "#f59e0b" : "#38bdf8",
-        weight: 3,
-        opacity: 0.9,
+        weight: 3.5,
+        opacity: 0.95,
         fillColor: isPoly ? "#10b981" : "#38bdf8",
-        fillOpacity: isPoly ? 0.28 : 0.6,
+        fillOpacity: isPoly ? 0.32 : 0.6,
       };
 
       let layer;
@@ -370,23 +378,23 @@ document.addEventListener("DOMContentLoaded", () => {
         layer = L.geoJSON(geoJsonFeature, { style });
       }
 
-      // Popup Content with friendly design
+      // Popup Content
       let measurementContent = "";
       if (item.measurement_type === "area") {
         const areaFmt = formatArea(item.value);
         measurementContent = `
-          <div style="margin: 6px 0; background: rgba(16,185,129,0.12); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #10b981;">
-            <div style="font-size: 0.72rem; color: #a7f3d0; text-transform: uppercase; font-weight: 700;">Calculated Area</div>
-            <div style="font-size: 1rem; font-weight: 800; color: #fff;">${areaFmt.primary}</div>
+          <div style="margin: 6px 0; background: rgba(16,185,129,0.14); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #10b981;">
+            <div style="font-size: 0.7rem; color: #a7f3d0; text-transform: uppercase; font-weight: 700;">Calculated Area</div>
+            <div style="font-size: 1.05rem; font-weight: 800; color: #fff;">${areaFmt.primary}</div>
             <div style="font-size: 0.74rem; color: #94a3b8;">${areaFmt.secondary}</div>
           </div>
         `;
       } else if (item.measurement_type === "length") {
         const lenFmt = formatLength(item.value);
         measurementContent = `
-          <div style="margin: 6px 0; background: rgba(245,158,11,0.12); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
-            <div style="font-size: 0.72rem; color: #fde68a; text-transform: uppercase; font-weight: 700;">Measured Length</div>
-            <div style="font-size: 1rem; font-weight: 800; color: #fff;">${lenFmt.primary}</div>
+          <div style="margin: 6px 0; background: rgba(245,158,11,0.14); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+            <div style="font-size: 0.7rem; color: #fde68a; text-transform: uppercase; font-weight: 700;">Measured Length</div>
+            <div style="font-size: 1.05rem; font-weight: 800; color: #fff;">${lenFmt.primary}</div>
             <div style="font-size: 0.74rem; color: #94a3b8;">${lenFmt.secondary}</div>
           </div>
         `;
@@ -399,21 +407,21 @@ document.addEventListener("DOMContentLoaded", () => {
         .join("");
 
       layer.bindPopup(`
-        <div style="font-family: 'Plus Jakarta Sans', sans-serif; min-width: 190px;">
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; min-width: 200px;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
             <span style="font-weight: 800; color: #38bdf8; font-size: 0.9rem;">#${item.feature_id}</span>
-            <span style="font-size: 0.7rem; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">${item.geometry_type}</span>
+            <span style="font-size: 0.68rem; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">${item.geometry_type}</span>
           </div>
           <div style="font-weight: 700; color: #f8fafc; font-size: 0.88rem; margin-bottom: 6px;">${nameProp}</div>
           ${measurementContent}
-          <div style="font-size: 0.74rem; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
+          <div style="font-size: 0.72rem; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
             ${propRows}
           </div>
         </div>
       `);
 
       layer.on("click", () => {
-        highlightTableRow(item.feature_id);
+        highlightFeatureCard(item.feature_id);
       });
 
       geoJsonLayerGroup.addLayer(layer);
@@ -425,22 +433,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function fitMapToBounds() {
     if (geoJsonLayerGroup.getLayers().length > 0) {
-      map.fitBounds(geoJsonLayerGroup.getBounds(), { padding: [50, 50], maxZoom: 18 });
+      // Offset padding for the floating sidebar on the left
+      const isCollapsed = sidebar && sidebar.classList.contains("collapsed");
+      const leftPad = isCollapsed ? 60 : 480;
+      map.fitBounds(geoJsonLayerGroup.getBounds(), {
+        paddingTopLeft: [leftPad, 80],
+        paddingBottomRight: [60, 60],
+        maxZoom: 18,
+      });
     }
   }
 
-  function renderTable(measurements) {
-    featuresTableBody.innerHTML = "";
+  function renderFeaturesList(measurements) {
+    featuresList.innerHTML = "";
 
     const filtered = measurements.filter((m) => {
-      // 1. Geometry Filter
       let passType = true;
       if (activeFilter !== "ALL") {
         passType = m.geometry_type.toLowerCase().includes(activeFilter.toLowerCase());
       }
       if (!passType) return false;
 
-      // 2. Search Query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const featStr = JSON.stringify(m).toLowerCase();
@@ -450,96 +463,84 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (filtered.length === 0) {
-      featuresTableBody.innerHTML = `
-        <tr>
-          <td colspan="5" class="empty-state-cell">
-            <div class="empty-guide">
-              <span class="empty-icon">🔍</span>
-              <p class="empty-title">No matching features found</p>
-              <p class="empty-desc">Try clearing the search query or switching filters.</p>
-            </div>
-          </td>
-        </tr>
+      featuresList.innerHTML = `
+        <div class="empty-list-state">
+          <div class="empty-list-icon">🔍</div>
+          <p><strong>No matching features found</strong></p>
+          <p>Try clearing your search query.</p>
+        </div>
       `;
       return;
     }
 
     filtered.forEach((m) => {
-      const tr = document.createElement("tr");
-      tr.id = `row-feat-${m.feature_id}`;
+      const card = document.createElement("div");
+      card.className = "feature-item-card";
+      card.id = `feat-card-${m.feature_id}`;
 
-      // Badge Class
-      let badgeClass = "type-other";
-      if (m.geometry_type.includes("Polygon")) badgeClass = "type-poly";
-      else if (m.geometry_type.includes("Line")) badgeClass = "type-line";
-      else if (m.geometry_type.includes("Point")) badgeClass = "type-pt";
+      let tagClass = "tag-poly";
+      if (m.geometry_type.includes("Line")) tagClass = "tag-line";
+      else if (m.geometry_type.includes("Point")) tagClass = "tag-pt";
 
-      // Measurements Column
-      let measHtml = '<span style="color: var(--text-muted);">No measurement</span>';
+      let measPrimary = "—";
+      let measSub = "No metric";
+
       if (m.measurement_type === "area" && m.value !== null) {
         const areaFmt = formatArea(m.value);
-        measHtml = `
-          <div class="cell-measurement">
-            <span class="primary-meas">${areaFmt.primary}</span>
-            <span class="sub-meas">${areaFmt.secondary}</span>
-          </div>
-        `;
+        measPrimary = areaFmt.primary;
+        measSub = areaFmt.secondary;
       } else if (m.measurement_type === "length" && m.value !== null) {
         const lenFmt = formatLength(m.value);
-        measHtml = `
-          <div class="cell-measurement">
-            <span class="primary-meas">${lenFmt.primary}</span>
-            <span class="sub-meas">${lenFmt.secondary}</span>
-          </div>
-        `;
+        measPrimary = lenFmt.primary;
+        measSub = lenFmt.secondary;
       }
 
-      // Feature Details
       const featName = m.properties.name || m.properties.Name || m.properties.id || `Feature #${m.feature_id}`;
-      const firstAttr = Object.entries(m.properties)
-        .filter(([k]) => !["name", "Name", "id"].includes(k))
-        .map(([k, v]) => `${k}: ${v}`)
-        .slice(0, 1)
-        .join(", ");
 
-      tr.innerHTML = `
-        <td style="font-family: var(--font-mono); font-weight: 700; color: var(--cyan-main);">#${m.feature_id}</td>
-        <td><span class="type-badge ${badgeClass}">${m.geometry_type}</span></td>
-        <td>
-          <div class="cell-details">
-            <span class="feature-name">${featName}</span>
-            <span class="feature-attr">${firstAttr || "Standard feature"}</span>
+      card.innerHTML = `
+        <div class="feature-item-left">
+          <div class="feature-top-meta">
+            <span class="feature-id-badge">#${m.feature_id}</span>
+            <span class="feature-type-tag ${tagClass}">${m.geometry_type}</span>
           </div>
-        </td>
-        <td>${measHtml}</td>
-        <td style="text-align: center;">
-          <button class="btn-locate" data-id="${m.feature_id}" title="Focus on map">View 🔍</button>
-        </td>
+          <div class="feature-title-label" title="${featName}">${featName}</div>
+        </div>
+        <div class="feature-meas-display">
+          <div class="meas-primary">${measPrimary}</div>
+          <div class="meas-sub">${measSub}</div>
+        </div>
       `;
 
-      tr.querySelector(".btn-locate").addEventListener("click", () => {
+      card.addEventListener("click", () => {
         zoomToFeature(m.feature_id);
       });
 
-      featuresTableBody.appendChild(tr);
+      featuresList.appendChild(card);
     });
   }
 
-  function highlightTableRow(featureId) {
-    document.querySelectorAll(".data-table tr").forEach((r) => r.classList.remove("highlighted"));
-    const row = document.getElementById(`row-feat-${featureId}`);
-    if (row) {
-      row.classList.add("highlighted");
-      row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  function highlightFeatureCard(featureId) {
+    document.querySelectorAll(".feature-item-card").forEach((c) => c.classList.remove("highlighted"));
+    const card = document.getElementById(`feat-card-${featureId}`);
+    if (card) {
+      card.classList.add("highlighted");
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
 
   function zoomToFeature(featureId) {
     const item = mapLayers.find((l) => l.id === featureId);
     if (item && item.layer) {
-      highlightTableRow(featureId);
+      highlightFeatureCard(featureId);
+      const isCollapsed = sidebar && sidebar.classList.contains("collapsed");
+      const leftPad = isCollapsed ? 60 : 480;
+
       if (item.layer.getBounds) {
-        map.fitBounds(item.layer.getBounds(), { padding: [60, 60], maxZoom: 18 });
+        map.fitBounds(item.layer.getBounds(), {
+          paddingTopLeft: [leftPad, 80],
+          paddingBottomRight: [60, 60],
+          maxZoom: 18,
+        });
       } else if (item.layer.getLatLng) {
         map.setView(item.layer.getLatLng(), 17);
       }
@@ -547,7 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- UI Notifications & State ---
+  // --- Helpers ---
   function showLoader(isLoading) {
     if (isLoading) {
       uploadLoader.classList.remove("hidden");
@@ -573,7 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3200);
   }
 
-  // --- Event Handlers ---
+  // --- Event Listeners ---
   dropzone.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", (e) => {
     if (e.target.files.length > 0) uploadFile(e.target.files[0]);
@@ -590,7 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.dataTransfer.files.length > 0) uploadFile(e.dataTransfer.files[0]);
   });
 
-  // Unit Switcher
+  // Units
   unitMetric.addEventListener("click", () => {
     unitMetric.classList.add("active");
     unitAcre.classList.remove("active");
@@ -605,7 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentMeasurementsData) renderDashboard(currentMeasurementsData);
   });
 
-  // Demo Loaders
+  // Demos
   btnDemoKml.addEventListener("click", () => loadDemo("kml"));
   btnDemoShp.addEventListener("click", () => loadDemo("shapefile"));
 
@@ -616,23 +617,23 @@ document.addEventListener("DOMContentLoaded", () => {
   alertClose.addEventListener("click", () => showAlert(null));
   btnFitMap.addEventListener("click", fitMapToBounds);
 
-  // Filter Tabs
-  filterTabs.querySelectorAll(".pill-btn").forEach((btn) => {
+  // Filters
+  filterTabs.querySelectorAll(".chip-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      filterTabs.querySelectorAll(".pill-btn").forEach((b) => b.classList.remove("active"));
+      filterTabs.querySelectorAll(".chip-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       activeFilter = btn.getAttribute("data-filter");
-      if (currentMeasurementsData) renderTable(currentMeasurementsData.measurements);
+      if (currentMeasurementsData) renderFeaturesList(currentMeasurementsData.measurements);
     });
   });
 
-  // Search Input
+  // Search
   searchInput.addEventListener("input", (e) => {
     searchQuery = e.target.value.trim();
-    if (currentMeasurementsData) renderTable(currentMeasurementsData.measurements);
+    if (currentMeasurementsData) renderFeaturesList(currentMeasurementsData.measurements);
   });
 
-  // Raw JSON Modal
+  // Modals
   btnViewJson.addEventListener("click", () => {
     if (!currentMeasurementsData) {
       showToast("No survey loaded yet.");
@@ -652,7 +653,6 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("JSON payload copied to clipboard!");
   });
 
-  // Copy GeoJSON
   btnCopyGeoJson.addEventListener("click", () => {
     if (!currentMeasurementsData) {
       showToast("No active survey to copy.");
@@ -740,13 +740,13 @@ document.addEventListener("DOMContentLoaded", () => {
       tileProviders.mapbox = getMapboxLayer();
 
       if (savedMapboxToken && tileProviders.mapbox) {
-        document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".basemap-pill").forEach((b) => b.classList.remove("active"));
         document.getElementById("btnMapboxLayer")?.classList.add("active");
         activeBasemap = tileProviders.mapbox.addTo(map);
-        showToast("Mapbox High-Res Vector Labels Activated!");
+        showToast("Mapbox Vector Labels Activated!");
       } else {
-        document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
-        document.querySelector('.basemap-btn[data-map="dark"]')?.classList.add("active");
+        document.querySelectorAll(".basemap-pill").forEach((b) => b.classList.remove("active"));
+        document.querySelector('.basemap-pill[data-map="dark"]')?.classList.add("active");
         activeBasemap = tileProviders.dark.addTo(map);
         showToast("Location & Street Labels Updated!");
       }
@@ -769,8 +769,8 @@ document.addEventListener("DOMContentLoaded", () => {
       tileProviders.satellite = getSatelliteHybridLayer();
       tileProviders.mapbox = null;
 
-      document.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
-      document.querySelector('.basemap-btn[data-map="dark"]')?.classList.add("active");
+      document.querySelectorAll(".basemap-pill").forEach((b) => b.classList.remove("active"));
+      document.querySelector('.basemap-pill[data-map="dark"]')?.classList.add("active");
       activeBasemap = tileProviders.dark.addTo(map);
       showToast("Reset to Free Basemaps with Location Labels");
     });
