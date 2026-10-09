@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Inavolu, Telangana Survey - 506310</name>
+    <description>Cadastral and agricultural land survey in Inavolu, Hanamkonda / Warangal District, Telangana (PIN 506310)</description>
+
+    <!-- 1. Agricultural Farm Parcel (Polygon) -->
+    <Placemark>
+      <name>Inavolu Agricultural Farm Parcel A</name>
+      <description>Irrigated agricultural farm land parcel in Inavolu village</description>
+      <ExtendedData>
+        <Data name="village"><value>Inavolu</value></Data>
+        <Data name="state"><value>Telangana</value></Data>
+        <Data name="pincode"><value>506310</value></Data>
+        <Data name="survey_no"><value>142/B</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <extrude>1</extrude>
+        <altitudeMode>clampToGround</altitudeMode>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              79.5520,17.8670,0
+              79.5580,17.8670,0
+              79.5580,17.8720,0
+              79.5520,17.8720,0
+              79.5520,17.8670,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <!-- 2. Temple & Cultural Heritage Zone (Polygon) -->
+    <Placemark>
+      <name>Inavolu Mallikarjuna Temple Zone</name>
+      <description>Temple complex and cultural heritage precinct boundary</description>
+      <ExtendedData>
+        <Data name="village"><value>Inavolu</value></Data>
+        <Data name="category"><value>Heritage</value></Data>
+        <Data name="district"><value>Hanamkonda</value></Data>
+      </ExtendedData>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              79.5540,17.8680,0
+              79.5565,17.8680,0
+              79.5565,17.8705,0
+              79.5540,17.8705,0
+              79.5540,17.8680,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <!-- 3. Inavolu Village Road Corridor (LineString) -->
+    <Placemark>
+      <name>Inavolu Main Approach Road Corridor</name>
+      <description>Village road corridor connecting to Warangal highway</description>
+      <ExtendedData>
+        <Data name="road_type"><value>Major District Road</value></Data>
+        <Data name="surface"><value>Bitumen</value></Data>
+      </ExtendedData>
+      <LineString>
+        <coordinates>
+          79.5490,17.8650,0
+          79.5530,17.8675,0
+          79.5552,17.8688,0
+          79.5590,17.8710,0
+          79.5630,17.8735,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+
+    <!-- 4. Village Center Marker (Point) -->
+    <Placemark>
+      <name>Inavolu Center Landmark (PIN 506310)</name>
+      <description>Inavolu Landmark GPS Reference Station</description>
+      <ExtendedData>
+        <Data name="latitude"><value>17.86879</value></Data>
+        <Data name="longitude"><value>79.55518</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>79.55518,17.86879,0</coordinates>
+      </Point>
+    </Placemark>
+
+  </Document>
+</kml>
