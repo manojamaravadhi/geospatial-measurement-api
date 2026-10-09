@@ -241,6 +241,10 @@
               <button class="basemap-btn" data-map="streets">🗺️ Streets</button>
             </div>
 
+            <button id="btnMapKey" class="tool-btn" title="Configure Map Provider / Optional API Key">
+              🔑 Key
+            </button>
+
             <button id="btnFitMap" class="tool-btn" title="Center map on geometries">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -333,6 +337,35 @@
       </div>
       <div class="modal-code-area">
         <pre><code id="jsonCodeViewer"></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map API Key Modal -->
+  <div id="keyModal" class="modal-backdrop hidden">
+    <div class="modal-box glass-card" style="max-width: 500px;">
+      <div class="modal-top">
+        <div class="modal-title-wrap">
+          <span class="code-icon">🔑</span>
+          <h3>Basemap API Key Settings</h3>
+        </div>
+        <button id="closeKeyModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #a7f3d0; line-height: 1.4;">
+          ✨ <strong>Zero Key Required:</strong> By default, we use <strong>100% Free Esri Dark Canvas, Satellite, and OpenStreetMap</strong> tiles with zero watermarks!
+        </div>
+        <p style="font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
+          If you have a personal <strong>CARTO</strong> account from <a href="https://carto.com/basemaps/" target="_blank" style="color: #38bdf8; text-decoration: underline;">carto.com</a>, you can paste your key below to remove the watermark from CARTO tiles:
+        </p>
+        <div>
+          <label style="font-size: 0.74rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase;">CARTO Basemap API Key:</label>
+          <input type="text" id="cartoApiKeyInput" class="search-input" style="margin-top: 6px;" placeholder="Paste CARTO API key...">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+          <button id="btnResetKey" class="tool-btn" style="padding: 7px 14px;">Use Free Esri Dark</button>
+          <button id="btnSaveKey" class="btn-copy" style="padding: 7px 16px;">Save Key</button>
+        </div>
       </div>
     </div>
   </div>

@@ -58,18 +58,32 @@ document.addEventListener("DOMContentLoaded", () => {
     zoomControl: true,
   }).setView([12.9716, 77.5946], 12); // Bengaluru center
 
+  // Saved CARTO API key from localStorage (if any)
+  let savedCartoKey = localStorage.getItem("carto_api_key") || "";
+
+  function getDarkTileLayer() {
+    if (savedCartoKey) {
+      return L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${savedCartoKey}`, {
+        attribution: '&copy; CARTO & OpenStreetMap',
+        maxZoom: 20,
+        subdomains: "abcd",
+      });
+    }
+    // 100% Free, NO API Key needed, Zero Watermark Esri Dark Canvas:
+    return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+      attribution: '&copy; Esri Dark Canvas & OpenStreetMap',
+      maxZoom: 16,
+    });
+  }
+
   // Tile Providers
   const tileProviders = {
-    dark: L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; CARTO & OpenStreetMap',
-      maxZoom: 20,
-      subdomains: "abcd",
-    }),
+    dark: getDarkTileLayer(),
     satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
       attribution: '&copy; Esri World Imagery',
       maxZoom: 19,
     }),
-    streets: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    streets: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
     }),
@@ -85,6 +99,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const mapType = btn.getAttribute("data-map");
 
       map.removeLayer(activeBasemap);
+      if (mapType === "dark") {
+        tileProviders.dark = getDarkTileLayer();
+      }
       activeBasemap = tileProviders[mapType].addTo(map);
     });
   });
@@ -613,6 +630,67 @@ document.addEventListener("DOMContentLoaded", () => {
     navigator.clipboard.writeText(JSON.stringify(featureCollection, null, 2));
     showToast("Full GeoJSON copied to clipboard!");
   });
+
+  // Basemap Key Settings Modal
+  const btnMapKey = document.getElementById("btnMapKey");
+  const keyModal = document.getElementById("keyModal");
+  const closeKeyModal = document.getElementById("closeKeyModal");
+  const cartoApiKeyInput = document.getElementById("cartoApiKeyInput");
+  const btnSaveKey = document.getElementById("btnSaveKey");
+  const btnResetKey = document.getElementById("btnResetKey");
+
+  if (cartoApiKeyInput) {
+    cartoApiKeyInput.value = savedCartoKey;
+  }
+
+  if (btnMapKey) {
+    btnMapKey.addEventListener("click", () => {
+      cartoApiKeyInput.value = savedCartoKey;
+      keyModal.classList.remove("hidden");
+    });
+  }
+
+  if (closeKeyModal) {
+    closeKeyModal.addEventListener("click", () => {
+      keyModal.classList.add("hidden");
+    });
+  }
+
+  if (keyModal) {
+    keyModal.addEventListener("click", (e) => {
+      if (e.target === keyModal) keyModal.classList.add("hidden");
+    });
+  }
+
+  if (btnSaveKey) {
+    btnSaveKey.addEventListener("click", () => {
+      savedCartoKey = cartoApiKeyInput.value.trim();
+      if (savedCartoKey) {
+        localStorage.setItem("carto_api_key", savedCartoKey);
+        showToast("CARTO API Key saved!");
+      } else {
+        localStorage.removeItem("carto_api_key");
+        showToast("Using 100% Free Esri Dark Basemap (No Key Needed)");
+      }
+      keyModal.classList.add("hidden");
+      map.removeLayer(activeBasemap);
+      tileProviders.dark = getDarkTileLayer();
+      activeBasemap = tileProviders.dark.addTo(map);
+    });
+  }
+
+  if (btnResetKey) {
+    btnResetKey.addEventListener("click", () => {
+      savedCartoKey = "";
+      localStorage.removeItem("carto_api_key");
+      if (cartoApiKeyInput) cartoApiKeyInput.value = "";
+      keyModal.classList.add("hidden");
+      map.removeLayer(activeBasemap);
+      tileProviders.dark = getDarkTileLayer();
+      activeBasemap = tileProviders.dark.addTo(map);
+      showToast("Reset to Free Esri Dark Basemap (No Key Needed)");
+    });
+  }
 
   // Initialize
   fetchFileList();
